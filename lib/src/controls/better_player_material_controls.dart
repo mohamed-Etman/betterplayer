@@ -47,6 +47,7 @@ class _BetterPlayerMaterialControlsState
   Timer _showAfterExpandCollapseTimer;
   bool _displayTapped = false;
   bool _wasLoading = false;
+  bool _liveOutOfSync = false;
   VideoPlayerController _controller;
   BetterPlayerController _betterPlayerController;
   StreamSubscription _controlsVisibilityStreamSubscription;
@@ -307,11 +308,27 @@ class _BetterPlayerMaterialControlsState
 
   Widget _buildLiveWidget() {
     return Expanded(
-      child: Text(
-        _betterPlayerController.translations.controlsLive,
-        style: TextStyle(
-            color: _controlsConfiguration.liveTextColor,
-            fontWeight: FontWeight.bold),
+      child: Container(
+        child: Row(
+          children: [
+            FlatButton(
+              onPressed: () {
+                if (_liveOutOfSync) {
+                  _syncWithBuffer();
+                }
+              },
+              child: Text(
+                _betterPlayerController.translations.controlsLive,
+                style: TextStyle(
+                  color: _liveOutOfSync
+                      ? Colors.grey
+                      : _controlsConfiguration.liveTextColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -643,6 +660,18 @@ class _BetterPlayerMaterialControlsState
     });
   }
 
+  void _syncWithBuffer() async {
+    final bufferEnd = _latestValue.buffered.last.end;
+
+    print("seekingTo = ${bufferEnd.inSeconds}");
+
+    print("olPosition: ${_latestValue.position}");
+    await betterPlayerController.seekTo(bufferEnd);
+    print("newPosition: ${_latestValue.position}");
+
+    _updateState();
+  }
+
   void _startHideTimer() {
     if (_betterPlayerController.controlsAlwaysVisible) {
       return;
@@ -664,6 +693,9 @@ class _BetterPlayerMaterialControlsState
           _latestValue = _controller.value;
           if (isVideoFinished(_latestValue)) {
             _hideStuff = false;
+          }
+          if (betterPlayerController.isLiveStream()) {
+            _liveOutOfSync = isOutOfSync(_latestValue);
           }
         });
       }

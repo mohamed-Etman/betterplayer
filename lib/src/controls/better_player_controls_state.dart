@@ -31,7 +31,18 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         videoPlayerValue?.duration != null &&
         videoPlayerValue.position.inMilliseconds != 0 &&
         videoPlayerValue.duration.inMilliseconds != 0 &&
-        videoPlayerValue.position >= videoPlayerValue.duration;
+        videoPlayerValue.position >= videoPlayerValue.duration &&
+        !betterPlayerController.betterPlayerDataSource.liveStream;
+  }
+
+  // determine if the video out of sync by 7 seconds or not
+  bool isOutOfSync(VideoPlayerValue videoPlayerValue) {
+    if (videoPlayerValue.buffered.isEmpty) return false;
+    // TODO: calculate the diffrene based on the segment length
+
+    return (videoPlayerValue.buffered.last.end.inSeconds -
+            videoPlayerValue.position.inSeconds) >=
+        10;
   }
 
   void skipBack() {
