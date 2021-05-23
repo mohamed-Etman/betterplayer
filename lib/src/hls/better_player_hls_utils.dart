@@ -9,7 +9,11 @@ import 'package:better_player/src/hls/better_player_hls_audio_track.dart';
 // Project imports:
 import 'package:better_player/src/hls/better_player_hls_subtitle.dart';
 import 'package:better_player/src/hls/better_player_hls_track.dart';
-import 'package:flutter_hls_parser/flutter_hls_parser.dart';
+import 'package:better_player/src/hls/hls_parser/hls_master_playlist.dart';
+import 'package:better_player/src/hls/hls_parser/hls_media_playlist.dart';
+import 'package:better_player/src/hls/hls_parser/hls_playlist_parser.dart';
+import 'package:better_player/src/hls/hls_parser/rendition.dart';
+import 'package:better_player/src/hls/hls_parser/segment.dart';
 
 ///HLS helper class
 class BetterPlayerHlsUtils {
@@ -32,6 +36,10 @@ class BetterPlayerHlsUtils {
                 variant.format.height, variant.format.bitrate));
           },
         );
+      }
+
+      if (tracks.isNotEmpty) {
+        tracks.insert(0, BetterPlayerHlsTrack.defaultTrack());
       }
     } catch (exception) {
       BetterPlayerUtils.log("Exception on parseSubtitles: $exception");
@@ -118,7 +126,11 @@ class BetterPlayerHlsUtils {
   }
 
   static Future<String> getDataFromUrl(String url,
+<<<<<<< HEAD
       [Map<String, String> headers = null]) async {
+=======
+      [Map<String, String> headers]) async {
+>>>>>>> a62cca96052269504b95096c26f0ddff52a2c75f
     try {
       assert(url != null, "Url can't be null!");
       final request = await _httpClient.getUrl(Uri.parse(url));
@@ -129,7 +141,7 @@ class BetterPlayerHlsUtils {
       final response = await request.close();
       var data = "";
       await response.transform(const Utf8Decoder()).listen((contents) {
-        data = contents.toString();
+        data += contents.toString();
       }).asFuture<String>();
 
       return data;

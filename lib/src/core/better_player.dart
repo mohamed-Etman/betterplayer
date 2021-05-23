@@ -117,12 +117,7 @@ class _BetterPlayerState extends State<BetterPlayer>
 
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(onFullScreenChanged);
-
-    ///Controller from list widget must be dismissed manually
-    if (widget.controller.betterPlayerPlaylistConfiguration == null) {
-      widget.controller.dispose();
-    }
-
+    widget.controller.dispose();
     super.dispose();
   }
 

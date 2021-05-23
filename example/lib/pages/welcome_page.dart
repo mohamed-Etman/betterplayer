@@ -8,8 +8,10 @@ import 'package:better_player_example/pages/change_player_theme_page.dart';
 import 'package:better_player_example/pages/controller_controls_page.dart';
 import 'package:better_player_example/pages/controls_always_visible_page.dart';
 import 'package:better_player_example/pages/controls_configuration_page.dart';
+import 'package:better_player_example/pages/drm_page.dart';
 import 'package:better_player_example/pages/event_listener_page.dart';
 import 'package:better_player_example/pages/fade_placeholder_page.dart';
+import 'package:better_player_example/pages/hls_audio_page.dart';
 import 'package:better_player_example/pages/hls_subtitles_page.dart';
 import 'package:better_player_example/pages/hls_tracks_page.dart';
 import 'package:better_player_example/pages/memory_player_page.dart';
@@ -97,6 +99,9 @@ class _WelcomePageState extends State<WelcomePage> {
       _buildExampleElementWidget("HLS tracks", () {
         _navigateToPage(HlsTracksPage());
       }),
+      _buildExampleElementWidget("HLS Audio", () {
+        _navigateToPage(HlsAudioPage());
+      }),
       _buildExampleElementWidget("Cache", () {
         _navigateToPage(CachePage());
       }),
@@ -147,6 +152,9 @@ class _WelcomePageState extends State<WelcomePage> {
       }),
       _buildExampleElementWidget("Controls always visible", () {
         _navigateToPage(ControlsAlwaysVisiblePage());
+      }),
+      _buildExampleElementWidget("DRM", () {
+        _navigateToPage(DrmPage());
       }),
     ];
   }

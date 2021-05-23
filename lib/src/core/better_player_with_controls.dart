@@ -62,11 +62,11 @@ class _BetterPlayerWithControlsState extends State<BetterPlayerWithControls> {
   }
 
   void _onControllerChanged() {
-    if (!_initalized) {
-      setState(() {
+    setState(() {
+      if (!_initalized) {
         _initalized = true;
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -151,7 +151,8 @@ class _BetterPlayerWithControlsState extends State<BetterPlayerWithControls> {
   }
 
   Widget _buildPlaceholder(BetterPlayerController betterPlayerController) {
-    return betterPlayerController.betterPlayerConfiguration.placeholder ??
+    return betterPlayerController.betterPlayerDataSource.placeholder ??
+        betterPlayerController.betterPlayerConfiguration.placeholder ??
         Container();
   }
 
@@ -283,6 +284,12 @@ class _BetterPlayerVideoFitWidgetState
                 widget.betterPlayerController.hasCurrentDataSourceStarted;
           });
         }
+      }
+      if (event.betterPlayerEventType ==
+          BetterPlayerEventType.setupDataSource) {
+        setState(() {
+          _started = false;
+        });
       }
     });
   }
