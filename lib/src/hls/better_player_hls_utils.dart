@@ -126,11 +126,7 @@ class BetterPlayerHlsUtils {
   }
 
   static Future<String> getDataFromUrl(String url,
-<<<<<<< HEAD
-      [Map<String, String> headers = null]) async {
-=======
       [Map<String, String> headers]) async {
->>>>>>> a62cca96052269504b95096c26f0ddff52a2c75f
     try {
       assert(url != null, "Url can't be null!");
       final request = await _httpClient.getUrl(Uri.parse(url));

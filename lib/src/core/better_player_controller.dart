@@ -282,11 +282,7 @@ class BetterPlayerController extends ChangeNotifier {
   Future _setupHlsDataSource() async {
     final String hlsData = await BetterPlayerHlsUtils.getDataFromUrl(
       betterPlayerDataSource.url,
-<<<<<<< HEAD
-      betterPlayerDataSource.headers,
-=======
       _getHeaders(),
->>>>>>> a62cca96052269504b95096c26f0ddff52a2c75f
     );
     if (hlsData != null) {
       /// Load hls tracks
