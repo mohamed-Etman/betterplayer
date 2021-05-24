@@ -42,7 +42,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
 
     return (videoPlayerValue.buffered.last.end.inSeconds -
             videoPlayerValue.position.inSeconds) >=
-        10;
+        8;
   }
 
   void skipBack() {

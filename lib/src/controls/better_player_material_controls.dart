@@ -307,30 +307,32 @@ class _BetterPlayerMaterialControlsState
   }
 
   Widget _buildLiveWidget() {
-    return Expanded(
-      child: Container(
-        child: Row(
-          children: [
-            FlatButton(
-              onPressed: () {
-                if (_liveOutOfSync) {
-                  _syncWithBuffer();
-                }
-              },
-              child: Text(
-                _betterPlayerController.translations.controlsLive,
-                style: TextStyle(
-                  color: _liveOutOfSync
-                      ? Colors.grey
-                      : _controlsConfiguration.liveTextColor,
-                  fontWeight: FontWeight.bold,
-                ),
+    return widget.controlsConfiguration.liveWidget != null
+        ? widget.controlsConfiguration.liveWidget
+        : Expanded(
+            child: Container(
+              child: Row(
+                children: [
+                  FlatButton(
+                    onPressed: () {
+                      if (_liveOutOfSync) {
+                        _syncWithBuffer();
+                      }
+                    },
+                    child: Text(
+                      _betterPlayerController.translations.controlsLive,
+                      style: TextStyle(
+                        color: _liveOutOfSync
+                            ? Colors.grey
+                            : _controlsConfiguration.liveTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
+          );
   }
 
   Widget _buildExpandButton() {
@@ -666,13 +668,16 @@ class _BetterPlayerMaterialControlsState
   }
 
   void _syncWithBuffer() async {
-    // final bufferEnd =
-    //     Duration(seconds: (_latestValue.buffered.last.end.inSeconds - 1));
-
-    // print("seekingTo = ${bufferEnd.inSeconds}");
+    final bufferEnd =
+        Duration(seconds: (_latestValue.buffered.last.end.inSeconds - 1));
+    print("duration ${_latestValue.duration.inSeconds}");
+    print(
+        "value duration ${_betterPlayerController.videoPlayerController.value.duration.inSeconds}");
+    print("seekingTo = ${bufferEnd.inSeconds}");
 
     print("olPosition: ${_latestValue.position.inSeconds}");
-    await betterPlayerController.seekTo(_latestValue.duration);
+    // betterPlayerController.videoPlayerController.
+    await betterPlayerController.seekTo(Duration(seconds: 185));
     print("newPosition: ${_latestValue.position.inSeconds}");
 
     _updateState();

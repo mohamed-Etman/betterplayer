@@ -505,13 +505,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ///
   /// If [moment] is outside of the video's full range it will be automatically
   /// and silently clamped.
-  Future<void> seekTo(Duration position) async {
+  Future<void> seekTo(Duration position, [bool force = false]) async {
     if (_isDisposed) {
       return;
     }
 
     Duration positionToSeek = position;
-    if (position > value.duration) {
+    if (position > value.duration && !force) {
       positionToSeek = value.duration;
     } else if (position < const Duration()) {
       positionToSeek = const Duration();
