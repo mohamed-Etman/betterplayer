@@ -637,7 +637,8 @@ class _BetterPlayerMaterialControlsState
     bool isFinished = false;
 
     if (_latestValue?.position != null && _latestValue?.duration != null) {
-      isFinished = _latestValue.position >= _latestValue.duration;
+      isFinished = _latestValue.position >= _latestValue.duration &&
+          _betterPlayerController.isLiveStream();
     }
 
     setState(() {
@@ -653,6 +654,10 @@ class _BetterPlayerMaterialControlsState
           if (isFinished) {
             _betterPlayerController.seekTo(const Duration());
           }
+
+          if (betterPlayerController.isLiveStream()) {
+            _betterPlayerController.seekTo(_latestValue.duration);
+          }
           _betterPlayerController.play();
           _betterPlayerController.cancelNextVideoTimer();
         }
@@ -661,13 +666,14 @@ class _BetterPlayerMaterialControlsState
   }
 
   void _syncWithBuffer() async {
-    final bufferEnd = _latestValue.buffered.last.end;
+    // final bufferEnd =
+    //     Duration(seconds: (_latestValue.buffered.last.end.inSeconds - 1));
 
-    print("seekingTo = ${bufferEnd.inSeconds}");
+    // print("seekingTo = ${bufferEnd.inSeconds}");
 
-    print("olPosition: ${_latestValue.position}");
-    await betterPlayerController.seekTo(bufferEnd);
-    print("newPosition: ${_latestValue.position}");
+    print("olPosition: ${_latestValue.position.inSeconds}");
+    await betterPlayerController.seekTo(_latestValue.duration);
+    print("newPosition: ${_latestValue.position.inSeconds}");
 
     _updateState();
   }
