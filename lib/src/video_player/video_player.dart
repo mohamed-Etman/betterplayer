@@ -519,7 +519,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     await _videoPlayerPlatform.seekTo(_textureId, positionToSeek);
     _updatePosition(position);
   }
-
   /// Sets the audio volume of [this].
   ///
   /// [volume] indicates a value between 0.0 (silent) and 1.0 (full volume) on a
