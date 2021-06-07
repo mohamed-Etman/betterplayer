@@ -79,7 +79,8 @@ This plugin is based on [Chewie](https://github.com/brianegan/chewie). Chewie is
 ✔️ HTTP Headers support  
 ✔️ BoxFit of video support  
 ✔️ Playback speed support  
-✔️ HLS support (track, subtitles, audio track selection)  
+✔️ HLS support (track, subtitles (also segmented), audio track selection)  
+✔️ DASH support (track, subtitles, audio track selection)     
 ✔️ Alternative resolution support  
 ✔️ Cache support  
 ✔️ Notifications support  
@@ -94,7 +95,7 @@ This plugin is based on [Chewie](https://github.com/brianegan/chewie). Chewie is
 
 ```yaml
 dependencies:
-  better_player: ^0.0.61
+  better_player: ^0.0.69
 ```
 
 2. Install it
@@ -111,7 +112,7 @@ import 'package:better_player/better_player.dart';
 
 ## Important information
 This plugin development is in progress. You may encounter breaking changes each version. This plugin is developed part-time for free. If you need
-some feature which is supported by other player available in pub dev, then feel free to create PR. All valuable contributions are welcome!
+some feature which is supported by other players available in pub dev, then feel free to create PR. All valuable contributions are welcome!
 
 ## General Usage
 Check [Example project](https://github.com/jhomlala/betterplayer/tree/master/example) which shows how to use Better Player in different scenarios.
@@ -268,7 +269,7 @@ var dataSource = BetterPlayerDataSource(
       BetterPlayerDataSourceType.network,
       "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
       liveStream: false,
-      useHlsSubtitles: true,
+      useAsmsSubtitles: true,
       hlsTrackNames: ["Low quality", "Not so low quality", "Medium quality"],
       subtitles: [
         BetterPlayerSubtitlesSource(
@@ -463,6 +464,8 @@ var betterPlayerConfiguration = BetterPlayerConfiguration(
       ),
     );
 ```
+
+
 ```dart
    ///Color of the control bars
    final Color controlBarColor;
@@ -656,7 +659,7 @@ Use BetterPlayerDataSource.network to build network data source, BetterPlayerDat
 to build memory data source.
 
 Possible configuration options:
-```
+```dart
   ///Type of source of video
   final BetterPlayerDataSourceType type;
 
@@ -673,14 +676,14 @@ Possible configuration options:
   /// Custom headers for player
   final Map<String, String> headers;
 
-  ///Should player use hls subtitles. Default is true.
-  final bool useHlsSubtitles;
+  ///Should player use hls / dash subtitles (ASMS - Adaptive Streaming Media Sources).
+  final bool useAsmsSubtitles;
 
   ///Should player use hls tracks
-  final bool useHlsTracks;
+  final bool useAsmsTracks;
 
-  ///Should player use hls audio tracks
-  final bool useHlsAudioTracks;
+  ///Should player use hls /das audio tracks
+  final bool useAsmsAudioTracks;
 
   ///List of strings that represents tracks names.
   ///If empty, then better player will choose name based on track parameters
@@ -734,6 +737,9 @@ Define cache configuration for given data source. Cache works only for network d
   /// The maximum size of each individual file in bytes.
   /// Android only option.
   final int maxCacheFileSize;
+
+  ///Cache key to re-use same cached data between app sessions.
+  final String? key;
 ```
 
 
@@ -889,7 +895,8 @@ BetterPlayerDataSource dataSource = BetterPlayerDataSource(
         showNotification: true,
         title: "Elephant dream",
         author: "Some author",
-        imageUrl:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/African_Bush_Elephant.jpg/1200px-African_Bush_Elephant.jpg",
+        imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/African_Bush_Elephant.jpg/1200px-African_Bush_Elephant.jpg",
+        activityName: "MainActivity",
       ),
     );
 ```
@@ -897,7 +904,8 @@ BetterPlayerDataSource dataSource = BetterPlayerDataSource(
 There are 3 majors parameters here:
 title - name of the resource, shown in first line
 author - author of the resource, shown in second line
-imageUrl - image of the resource (optional). Can be both link to external image or internal file.
+imageUrl - image of the resource (optional). Can be both link to external image or internal file
+activityName - name of activity used to open application back on notification click; used only for Activity
 
 If showNotification is set as true and no title and author is provided, then empty notification will be
 displayed.
@@ -1061,9 +1069,18 @@ Default value is false.
 ### More documentation
 https://pub.dev/documentation/better_player/latest/better_player/better_player-library.html
 
+### Cache
+Clear all cached data:
 
+```dart
+betterPlayerController.clearCache();
+```
+Start pre cache before playing video (android only):
+```dart
+betterPlayerController.preCache(_betterPlayerDataSource);
+```
 
-
-
-
-
+Stop running pre cache (android only):
+```dart
+betterPlayerController.stopPreCache(_betterPlayerDataSource);
+```

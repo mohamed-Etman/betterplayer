@@ -2,6 +2,8 @@ package com.jhomlala.better_player;
 
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
+import static com.jhomlala.better_player.DataSourceUtils.getDataSourceFactory;
+import static com.jhomlala.better_player.DataSourceUtils.getUserAgent;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -14,7 +16,6 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -60,16 +61,18 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import androidx.lifecycle.Observer;
 import androidx.media.session.MediaButtonReceiver;
+import androidx.work.Data;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkInfo;
+import androidx.work.WorkManager;
 
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.view.TextureRegistry;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -86,8 +89,6 @@ final class BetterPlayer {
     private static final String FORMAT_HLS = "hls";
     private static final String FORMAT_OTHER = "other";
     private static final String DEFAULT_NOTIFICATION_CHANNEL = "BETTER_PLAYER_NOTIFICATION";
-    private static final String USER_AGENT = "User-Agent";
-    private static final String USER_AGENT_PROPERTY = "http.agent";
     private static final int NOTIFICATION_ID = 20772077;
 
     private final SimpleExoPlayer exoPlayer;
@@ -106,6 +107,8 @@ final class BetterPlayer {
     private Bitmap bitmap;
     private MediaSessionCompat mediaSession;
     private DrmSessionManager drmSessionManager;
+    private WorkManager workManager;
+    private HashMap<UUID, Observer<WorkInfo>> workerObserverMap;
 
 
     BetterPlayer(
@@ -117,6 +120,8 @@ final class BetterPlayer {
         this.textureEntry = textureEntry;
         trackSelector = new DefaultTrackSelector(context);
         exoPlayer = new SimpleExoPlayer.Builder(context).setTrackSelector(trackSelector).build();
+        workManager = WorkManager.getInstance(context);
+        workerObserverMap = new HashMap<>();
 
         setupVideoPlayer(eventChannel, textureEntry, result);
     }
@@ -124,60 +129,55 @@ final class BetterPlayer {
     void setDataSource(
             Context context, String key, String dataSource, String formatHint, Result result,
             Map<String, String> headers, boolean useCache, long maxCacheSize, long maxCacheFileSize,
-            long overriddenDuration, String licenseUrl, Map<String, String> drmHeaders) {
+            long overriddenDuration, String licenseUrl, Map<String, String> drmHeaders,
+            String cacheKey) {
         this.key = key;
         isInitialized = false;
 
         Uri uri = Uri.parse(dataSource);
         DataSource.Factory dataSourceFactory;
 
-        String userAgent = System.getProperty(USER_AGENT_PROPERTY);
-        if (headers != null && headers.containsKey(USER_AGENT)) {
-            String userAgentHeader = headers.get(USER_AGENT);
-            if (userAgentHeader != null) {
-                userAgent = userAgentHeader;
-            }
-        }
+        String userAgent = getUserAgent(headers);
 
         if (licenseUrl != null && !licenseUrl.isEmpty()) {
             HttpMediaDrmCallback httpMediaDrmCallback =
                     new HttpMediaDrmCallback(licenseUrl, new DefaultHttpDataSource.Factory());
+
+            if (drmHeaders != null) {
+                for (Map.Entry<String, String> entry : drmHeaders.entrySet()) {
+                    httpMediaDrmCallback.setKeyRequestProperty(entry.getKey(), entry.getValue());
+                }
+            }
+
             if (Util.SDK_INT < 18) {
                 Log.e(TAG, "Protected content not supported on API levels below 18");
                 drmSessionManager = null;
             } else {
                 UUID drmSchemeUuid = Util.getDrmUuid("widevine");
-                drmSessionManager =
-                        new DefaultDrmSessionManager.Builder()
-                                .setUuidAndExoMediaDrmProvider(drmSchemeUuid,
-                                        uuid -> {
-                                            try {
-                                                FrameworkMediaDrm mediaDrm = FrameworkMediaDrm.newInstance(uuid);
-                                                // Force L3.
-                                                mediaDrm.setPropertyString("securityLevel", "L3");
-                                                return mediaDrm;
-                                            } catch (UnsupportedDrmException e) {
-                                                return new DummyExoMediaDrm();
-                                            }
-                                        })
-                                .setMultiSession(false)
-                                .setKeyRequestParameters(drmHeaders)
-                                .build(httpMediaDrmCallback);
+                if (drmSchemeUuid != null) {
+                    drmSessionManager =
+                            new DefaultDrmSessionManager.Builder()
+                                    .setUuidAndExoMediaDrmProvider(drmSchemeUuid,
+                                            uuid -> {
+                                                try {
+                                                    FrameworkMediaDrm mediaDrm = FrameworkMediaDrm.newInstance(uuid);
+                                                    // Force L3.
+                                                    mediaDrm.setPropertyString("securityLevel", "L3");
+                                                    return mediaDrm;
+                                                } catch (UnsupportedDrmException e) {
+                                                    return new DummyExoMediaDrm();
+                                                }
+                                            })
+                                    .setMultiSession(false)
+                                    .build(httpMediaDrmCallback);
+                }
             }
         } else {
             drmSessionManager = null;
         }
 
-        if (isHTTP(uri)) {
-            dataSourceFactory = new DefaultHttpDataSource.Factory()
-                    .setUserAgent(userAgent)
-                    .setAllowCrossProtocolRedirects(true)
-                    .setConnectTimeoutMs(DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS)
-                    .setReadTimeoutMs(DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS);
-
-            if (headers != null) {
-                ((DefaultHttpDataSource.Factory) dataSourceFactory).setDefaultRequestProperties(headers);
-            }
+        if (DataSourceUtils.isHTTP(uri)) {
+            dataSourceFactory = getDataSourceFactory(userAgent, headers);
 
             if (useCache && maxCacheSize > 0 && maxCacheFileSize > 0) {
                 dataSourceFactory =
@@ -187,7 +187,7 @@ final class BetterPlayer {
             dataSourceFactory = new DefaultDataSourceFactory(context, userAgent);
         }
 
-        MediaSource mediaSource = buildMediaSource(uri, dataSourceFactory, formatHint, context);
+        MediaSource mediaSource = buildMediaSource(uri, dataSourceFactory, formatHint, cacheKey, context);
         if (overriddenDuration != 0) {
             ClippingMediaSource clippingMediaSource = new ClippingMediaSource(mediaSource, 0, overriddenDuration * 1000);
             exoPlayer.setMediaSource(clippingMediaSource);
@@ -199,7 +199,10 @@ final class BetterPlayer {
         result.success(null);
     }
 
-    public void setupPlayerNotification(Context context, String title, String author, String imageUrl, String notificationChannelName) {
+
+    public void setupPlayerNotification(Context context, String title, String author,
+                                        String imageUrl, String notificationChannelName,
+                                        String activityName) {
 
         PlayerNotificationManager.MediaDescriptionAdapter mediaDescriptionAdapter
                 = new PlayerNotificationManager.MediaDescriptionAdapter() {
@@ -212,7 +215,15 @@ final class BetterPlayer {
             @Nullable
             @Override
             public PendingIntent createCurrentContentIntent(@NonNull Player player) {
-                return null;
+
+                final String packageName = context.getApplicationContext().getPackageName();
+                Intent notificationIntent = new Intent();
+                notificationIntent.setClassName(packageName,
+                        packageName + "." + activityName);
+                notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                return PendingIntent.getActivity(context, 0,
+                        notificationIntent, 0);
             }
 
             @Nullable
@@ -231,18 +242,54 @@ final class BetterPlayer {
                 if (bitmap != null) {
                     return bitmap;
                 }
-                new Thread(() -> {
-                    bitmap = null;
-                    if (imageUrl.contains("http")) {
-                        bitmap = getBitmapFromExternalURL(imageUrl);
-                    } else {
-                        bitmap = getBitmapFromInternalURL(imageUrl);
+
+
+                OneTimeWorkRequest imageWorkRequest = new OneTimeWorkRequest.Builder(ImageWorker.class)
+                        .addTag(imageUrl)
+                        .setInputData(
+                                new Data.Builder()
+                                        .putString(BetterPlayerPlugin.URL_PARAMETER, imageUrl)
+                                        .build())
+                        .build();
+
+                workManager.enqueue(imageWorkRequest);
+
+                Observer<WorkInfo> workInfoObserver = workInfo -> {
+                    try {
+                        if (workInfo != null) {
+                            WorkInfo.State state = workInfo.getState();
+                            if (state == WorkInfo.State.SUCCEEDED) {
+
+                                Data outputData = workInfo.getOutputData();
+                                String filePath = outputData.getString(BetterPlayerPlugin.FILE_PATH_PARAMETER);
+                                //Bitmap here is already processed and it's very small, so it won't
+                                //break anything.
+                                bitmap = BitmapFactory.decodeFile(filePath);
+                                callback.onBitmap(bitmap);
+
+                            }
+                            if (state == WorkInfo.State.SUCCEEDED
+                                    || state == WorkInfo.State.CANCELLED
+                                    || state == WorkInfo.State.FAILED) {
+                                final UUID uuid = imageWorkRequest.getId();
+                                Observer<WorkInfo> observer = workerObserverMap.remove(uuid);
+                                if (observer != null) {
+                                    workManager.getWorkInfoByIdLiveData(uuid).removeObserver(observer);
+                                }
+                            }
+                        }
+
+
+                    } catch (Exception exception) {
+                        Log.e(TAG, "Image select error: " + exception);
                     }
+                };
 
-                    Bitmap finalBitmap = bitmap;
-                    new Handler(Looper.getMainLooper()).post(() -> callback.onBitmap(finalBitmap));
+                final UUID workerUuid = imageWorkRequest.getId();
+                workManager.getWorkInfoByIdLiveData(workerUuid)
+                        .observeForever(workInfoObserver);
+                workerObserverMap.put(workerUuid, workInfoObserver);
 
-                }).start();
                 return null;
             }
         };
@@ -403,38 +450,10 @@ final class BetterPlayer {
         bitmap = null;
     }
 
-    private static Bitmap getBitmapFromInternalURL(String src) {
-        try {
-            return BitmapFactory.decodeFile(src);
-        } catch (Exception exception) {
-            return null;
-        }
-    }
-
-    private static Bitmap getBitmapFromExternalURL(String src) {
-        try {
-            URL url = new URL(src);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoInput(true);
-            connection.connect();
-            InputStream input = connection.getInputStream();
-            return BitmapFactory.decodeStream(input);
-        } catch (IOException exception) {
-            return null;
-        }
-    }
-
-
-    private static boolean isHTTP(Uri uri) {
-        if (uri == null || uri.getScheme() == null) {
-            return false;
-        }
-        String scheme = uri.getScheme();
-        return scheme.equals("http") || scheme.equals("https");
-    }
 
     private MediaSource buildMediaSource(
-            Uri uri, DataSource.Factory mediaDataSourceFactory, String formatHint, Context context) {
+            Uri uri, DataSource.Factory mediaDataSourceFactory, String formatHint, String cacheKey,
+            Context context) {
         int type;
         if (formatHint == null) {
             String lastPathSegment = uri.getLastPathSegment();
@@ -461,28 +480,35 @@ final class BetterPlayer {
                     break;
             }
         }
+        MediaItem.Builder mediaItemBuilder = new MediaItem.Builder();
+        mediaItemBuilder.setUri(uri);
+        if (cacheKey != null && cacheKey.length() > 0) {
+            mediaItemBuilder.setCustomCacheKey(cacheKey);
+        }
+        MediaItem mediaItem = mediaItemBuilder.build();
         switch (type) {
+
             case C.TYPE_SS:
                 return new SsMediaSource.Factory(
                         new DefaultSsChunkSource.Factory(mediaDataSourceFactory),
                         new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
                         .setDrmSessionManager(drmSessionManager)
-                        .createMediaSource(MediaItem.fromUri(uri));
+                        .createMediaSource(mediaItem);
             case C.TYPE_DASH:
                 return new DashMediaSource.Factory(
                         new DefaultDashChunkSource.Factory(mediaDataSourceFactory),
                         new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
                         .setDrmSessionManager(drmSessionManager)
-                        .createMediaSource(MediaItem.fromUri(uri));
+                        .createMediaSource(mediaItem);
             case C.TYPE_HLS:
                 return new HlsMediaSource.Factory(mediaDataSourceFactory)
                         .setDrmSessionManager(drmSessionManager)
-                        .createMediaSource(MediaItem.fromUri(uri));
+                        .createMediaSource(mediaItem);
             case C.TYPE_OTHER:
                 return new ProgressiveMediaSource.Factory(mediaDataSourceFactory,
                         new DefaultExtractorsFactory())
                         .setDrmSessionManager(drmSessionManager)
-                        .createMediaSource(MediaItem.fromUri(uri));
+                        .createMediaSource(mediaItem);
             default: {
                 throw new IllegalStateException("Unsupported type: " + type);
             }
@@ -749,7 +775,7 @@ final class BetterPlayer {
                                 return;
                             }
                             ///Fallback option
-                            if (hasElementWithoutLabel && name.equals(label)) {
+                            if (hasElementWithoutLabel && index == groupIndex) {
                                 setAudioTrack(rendererIndex, groupIndex, groupElementIndex);
                                 return;
                             }
@@ -789,9 +815,67 @@ final class BetterPlayer {
     }
 
     public void setMixWithOthers(Boolean mixWithOthers) {
-        setAudioAttributes(exoPlayer,mixWithOthers);
+        setAudioAttributes(exoPlayer, mixWithOthers);
     }
 
+    //Clear cache without accessing BetterPlayerCache.
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public static void clearCache(Context context, Result result) {
+        try {
+            File file = new File(context.getCacheDir(), "betterPlayerCache");
+            deleteDirectory(file);
+            result.success(null);
+        } catch (Exception exception) {
+            Log.e(TAG, exception.toString());
+            result.error("", "", "");
+        }
+    }
+
+    private static void deleteDirectory(File file) {
+        if (file.isDirectory()) {
+            File[] entries = file.listFiles();
+            if (entries != null) {
+                for (File entry : entries) {
+                    deleteDirectory(entry);
+                }
+            }
+        }
+        if (!file.delete()) {
+            Log.e(TAG, "Failed to delete cache dir.");
+        }
+    }
+
+
+    //Start pre cache of video. Invoke work manager job and start caching in background.
+    static void preCache(Context context, String dataSource, long preCacheSize,
+                         long maxCacheSize, long maxCacheFileSize, Map<String, String> headers,
+                         String cacheKey, Result result) {
+        Data.Builder dataBuilder = new Data.Builder()
+                .putString(BetterPlayerPlugin.URL_PARAMETER, dataSource)
+                .putLong(BetterPlayerPlugin.PRE_CACHE_SIZE_PARAMETER, preCacheSize)
+                .putLong(BetterPlayerPlugin.MAX_CACHE_SIZE_PARAMETER, maxCacheSize)
+                .putLong(BetterPlayerPlugin.MAX_CACHE_FILE_SIZE_PARAMETER, maxCacheFileSize);
+
+        if (cacheKey != null) {
+            dataBuilder.putString(BetterPlayerPlugin.CACHE_KEY_PARAMETER, cacheKey);
+        }
+        for (String headerKey : headers.keySet()) {
+            dataBuilder.putString(BetterPlayerPlugin.HEADER_PARAMETER + headerKey, headers.get(headerKey));
+        }
+
+        OneTimeWorkRequest cacheWorkRequest = new OneTimeWorkRequest.Builder(CacheWorker.class)
+                .addTag(dataSource)
+                .setInputData(dataBuilder.build()).build();
+        WorkManager.getInstance(context).enqueue(cacheWorkRequest);
+        result.success(null);
+    }
+
+    //Stop pre cache of video with given url. If there's no work manager job for given url, then
+    //it will be ignored.
+    static void stopPreCache(Context context, String url, Result result) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(url);
+        result.success(null);
+    }
 
     void dispose() {
         disposeMediaSession();
@@ -827,6 +911,7 @@ final class BetterPlayer {
         result = 31 * result + (surface != null ? surface.hashCode() : 0);
         return result;
     }
+
 }
 
 

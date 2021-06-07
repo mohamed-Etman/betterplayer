@@ -83,11 +83,11 @@ class BetterPlayerControlsConfiguration {
   final Duration controlsHideTime;
 
   ///Parameter used to build custom controls
-  final Widget Function(BetterPlayerController controller)
+  final Widget Function(BetterPlayerController controller)?
       customControlsBuilder;
 
   ///Parameter used to change theme of the player
-  final BetterPlayerTheme playerTheme;
+  final BetterPlayerTheme? playerTheme;
 
   ///Flag used to show/hide controls
   final bool showControls;
@@ -157,7 +157,7 @@ class BetterPlayerControlsConfiguration {
   final Color loadingColor;
 
   ///Widget which can be used instead of default progress
-  final Widget loadingWidget;
+  final Widget? loadingWidget;
 
   ///Color of the background, when no frame is displayed.
   final Color backgroundColor;
@@ -168,6 +168,7 @@ class BetterPlayerControlsConfiguration {
   ///Color of text in bottom modal sheet used for overflow menu items.
   final Color overflowModalTextColor;
 
+<<<<<<< HEAD
   // Widget to use instead of the default live widget
   final Widget liveWidget;
 
@@ -225,6 +226,60 @@ class BetterPlayerControlsConfiguration {
     this.overflowModalTextColor = Colors.black,
     this.liveWidget,
   });
+=======
+  const BetterPlayerControlsConfiguration(
+      {this.controlBarColor = Colors.black87,
+      this.textColor = Colors.white,
+      this.iconsColor = Colors.white,
+      this.playIcon = Icons.play_arrow,
+      this.pauseIcon = Icons.pause,
+      this.muteIcon = Icons.volume_up,
+      this.unMuteIcon = Icons.volume_mute,
+      this.fullscreenEnableIcon = Icons.fullscreen,
+      this.fullscreenDisableIcon = Icons.fullscreen_exit,
+      this.skipBackIcon = Icons.fast_rewind,
+      this.skipForwardIcon = Icons.fast_forward,
+      this.enableFullscreen = true,
+      this.enableMute = true,
+      this.enableProgressText = true,
+      this.enableProgressBar = true,
+      this.enableProgressBarDrag = true,
+      this.enablePlayPause = true,
+      this.enableSkips = true,
+      this.enableAudioTracks = true,
+      this.progressBarPlayedColor = Colors.white,
+      this.progressBarHandleColor = Colors.white,
+      this.progressBarBufferedColor = Colors.white70,
+      this.progressBarBackgroundColor = Colors.white60,
+      this.controlsHideTime = const Duration(milliseconds: 300),
+      this.customControlsBuilder,
+      this.playerTheme,
+      this.showControls = true,
+      this.showControlsOnInitialize = true,
+      this.controlBarHeight = 48.0,
+      this.liveTextColor = Colors.red,
+      this.enableOverflowMenu = true,
+      this.enablePlaybackSpeed = true,
+      this.enableSubtitles = true,
+      this.enableQualities = true,
+      this.enablePip = true,
+      this.enableRetry = true,
+      this.overflowMenuCustomItems = const [],
+      this.overflowMenuIcon = Icons.more_vert,
+      this.pipMenuIcon = Icons.picture_in_picture,
+      this.playbackSpeedIcon = Icons.shutter_speed,
+      this.qualitiesIcon = Icons.hd,
+      this.subtitlesIcon = Icons.text_fields,
+      this.audioTracksIcon = Icons.audiotrack,
+      this.overflowMenuIconsColor = Colors.black,
+      this.forwardSkipTimeInMilliseconds = 15000,
+      this.backwardSkipTimeInMilliseconds = 15000,
+      this.loadingColor = Colors.white,
+      this.loadingWidget,
+      this.backgroundColor = Colors.black,
+      this.overflowModalColor = Colors.white,
+      this.overflowModalTextColor = Colors.black});
+>>>>>>> 5be8878882c7d4850fb6bd1acd1c54500254f7f0
 
   factory BetterPlayerControlsConfiguration.white() {
     return const BetterPlayerControlsConfiguration(
@@ -242,7 +297,6 @@ class BetterPlayerControlsConfiguration {
         fullscreenEnableIcon: CupertinoIcons.fullscreen,
         fullscreenDisableIcon: CupertinoIcons.fullscreen_exit,
         playIcon: CupertinoIcons.play_arrow_solid,
-        pauseIcon: CupertinoIcons.pause_solid,
-        enableProgressText: true);
+        pauseIcon: CupertinoIcons.pause_solid);
   }
 }

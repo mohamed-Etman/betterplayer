@@ -59,6 +59,9 @@ int64_t FLTNSTimeIntervalToMillis(NSTimeInterval interval) {
 @property(nonatomic) bool _pictureInPicture;
 @property(nonatomic) bool _observersAdded;
 @property(nonatomic) int stalledCount;
+@property(nonatomic) bool isStalledCheckStarted;
+@property(nonatomic) float playerRate;
+@property(nonatomic) AVPlayerTimeControlStatus lastAvPlayerTimeControlStatus;
 - (void)play;
 - (void)pause;
 - (void)setIsLooping:(bool)isLooping;
@@ -195,6 +198,9 @@ AVPictureInPictureController *_pipController;
             [ self removeObservers];
             
         }
+        [_player pause];
+         _isPlaying = false;
+         _displayLink.paused = YES;
     }
 }
 
@@ -266,26 +272,24 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (CGAffineTransform)fixTransform:(AVAssetTrack*)videoTrack {
-    CGAffineTransform transform = videoTrack.preferredTransform;
-    // TODO(@recastrodiaz): why do we need to do this? Why is the preferredTransform incorrect?
-    // At least 2 user videos show a black screen when in portrait mode if we directly use the
-    // videoTrack.preferredTransform Setting tx to the height of the video instead of 0, properly
-    // displays the video https://github.com/flutter/flutter/issues/17606#issuecomment-413473181
-    if (transform.tx == 0 && transform.ty == 0) {
-        NSInteger rotationDegrees = (NSInteger)round(radiansToDegrees(atan2(transform.b, transform.a)));
-        NSLog(@"TX and TY are 0. Rotation: %ld. Natural width,height: %f, %f", (long)rotationDegrees,
-              videoTrack.naturalSize.width, videoTrack.naturalSize.height);
-        if (rotationDegrees == 90) {
-            NSLog(@"Setting transform tx");
-            transform.tx = videoTrack.naturalSize.height;
-            transform.ty = 0;
-        } else if (rotationDegrees == 270) {
-            NSLog(@"Setting transform ty");
-            transform.tx = 0;
-            transform.ty = videoTrack.naturalSize.width;
-        }
-    }
-    return transform;
+  CGAffineTransform transform = videoTrack.preferredTransform;
+  // TODO(@recastrodiaz): why do we need to do this? Why is the preferredTransform incorrect?
+  // At least 2 user videos show a black screen when in portrait mode if we directly use the
+  // videoTrack.preferredTransform Setting tx to the height of the video instead of 0, properly
+  // displays the video https://github.com/flutter/flutter/issues/17606#issuecomment-413473181
+  NSInteger rotationDegrees = (NSInteger)round(radiansToDegrees(atan2(transform.b, transform.a)));
+  NSLog(@"VIDEO__ %f, %f, %f, %f, %li", transform.tx, transform.ty, videoTrack.naturalSize.height, videoTrack.naturalSize.width, (long)rotationDegrees);
+  if (rotationDegrees == 90) {
+    transform.tx = videoTrack.naturalSize.height;
+    transform.ty = 0;
+  } else if (rotationDegrees == 180) {
+    transform.tx = videoTrack.naturalSize.width;
+    transform.ty = videoTrack.naturalSize.height;
+  } else if (rotationDegrees == 270) {
+    transform.tx = 0;
+    transform.ty = videoTrack.naturalSize.width;
+  }
+  return transform;
 }
 
 - (void)setDataSourceAsset:(NSString*)asset withKey:(NSString*)key overriddenDuration:(int) overriddenDuration{
@@ -317,7 +321,9 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)setDataSourcePlayerItem:(AVPlayerItem*)item withKey:(NSString*)key{
     _key = key;
-    _stalledCount =0;
+    _stalledCount = 0;
+    _isStalledCheckStarted = false;
+    _playerRate = 1;
     [_player replaceCurrentItemWithPlayerItem:item];
     
     AVAsset* asset = [item asset];
@@ -354,19 +360,30 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 -(void)handleStalled {
+    if (_isStalledCheckStarted){
+        return;
+    }
+   _isStalledCheckStarted = true;
+    [self startStalledCheck];
+}
+
+-(void)startStalledCheck{
     if (_player.currentItem.playbackLikelyToKeepUp ||
         [self availableDuration] - CMTimeGetSeconds(_player.currentItem.currentTime) > 10.0) {
         [self play];
     } else {
         _stalledCount++;
-        if (_stalledCount > 5){
-            _eventSink([FlutterError
+        if (_stalledCount > 60){
+            if (_eventSink != nil) {
+                _eventSink([FlutterError
                         errorWithCode:@"VideoError"
                         message:@"Failed to load video: playback stalled"
                         details:nil]);
+            }
             return;
         }
-        [self performSelector:@selector(handleStalled) withObject:nil afterDelay:1];
+        [self performSelector:@selector(startStalledCheck) withObject:nil afterDelay:1];
+        
     }
 }
 
@@ -391,6 +408,29 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
                        context:(void*)context {
     
     if ([path isEqualToString:@"rate"]) {
+        if (@available(iOS 10.0, *)) {
+            if (_pipController.pictureInPictureActive == true){
+                if (_lastAvPlayerTimeControlStatus != [NSNull null] && _lastAvPlayerTimeControlStatus == _player.timeControlStatus){
+                    return;
+                }
+                
+                if (_player.timeControlStatus == AVPlayerTimeControlStatusPaused){
+                    _lastAvPlayerTimeControlStatus = _player.timeControlStatus;
+                    if (_eventSink != nil) {
+                      _eventSink(@{@"event" : @"pause"});
+                    }
+                    return;
+                
+                }
+                if (_player.timeControlStatus == AVPlayerTimeControlStatusPlaying){
+                    _lastAvPlayerTimeControlStatus = _player.timeControlStatus;
+                    if (_eventSink != nil) {
+                      _eventSink(@{@"event" : @"play"});
+                    }
+                }
+            }
+        }
+        
         if (_player.rate == 0 && //if player rate dropped to 0
             CMTIME_COMPARE_INLINE(_player.currentItem.currentTime, >, kCMTimeZero) && //if video was started
             CMTIME_COMPARE_INLINE(_player.currentItem.currentTime, <, _player.currentItem.duration) && //but not yet finished
@@ -463,7 +503,6 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)updatePlayingState {
     if (!_isInitialized || !_key) {
-        NSLog(@"not initalized and paused!!");
         _displayLink.paused = YES;
         return;
     }
@@ -471,11 +510,14 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
         [self addObservers:[_player currentItem]];
     }
     
+
     if (_isPlaying) {
         if (@available(iOS 10.0, *)) {
             [_player playImmediatelyAtRate:1.0];
+            _player.rate = _playerRate;
         } else {
             [_player play];
+            _player.rate = _playerRate;
         }
     } else {
         [_player pause];
@@ -496,8 +538,12 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
         CGFloat width = size.width;
         CGFloat height = size.height;
         
+        
+        AVAsset *asset = _player.currentItem.asset;
+        bool onlyAudio =  [[asset tracksWithMediaType:AVMediaTypeVideo] count] == 0;
+        
         // The player has not yet initialized.
-        if (height == CGSizeZero.height && width == CGSizeZero.width) {
+        if (!onlyAudio && height == CGSizeZero.height && width == CGSizeZero.width) {
             return;
         }
         const BOOL isLive = CMTIME_IS_INDEFINITE([_player currentItem].duration);
@@ -527,6 +573,7 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)play {
     _stalledCount = 0;
+    _isStalledCheckStarted = false;
     _isPlaying = true;
     [self updatePlayingState];
 }
@@ -586,7 +633,7 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)setSpeed:(double)speed result:(FlutterResult)result {
     if (speed == 1.0 || speed == 0.0) {
-        _player.rate = speed;
+        _playerRate = 1;
         result(nil);
     } else if (speed < 0 || speed > 2.0) {
         result([FlutterError errorWithCode:@"unsupported_speed"
@@ -594,7 +641,7 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
                                    details:nil]);
     } else if ((speed > 1.0 && _player.currentItem.canPlayFastForward) ||
                (speed < 1.0 && _player.currentItem.canPlaySlowForward)) {
-        _player.rate = speed;
+        _playerRate = speed;
         result(nil);
     } else {
         if (speed > 1.0) {
@@ -606,6 +653,10 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
                                        message:@"This video cannot be played slow forward"
                                        details:nil]);
         }
+    }
+    
+    if (_isPlaying){
+        _player.rate = _playerRate;
     }
 }
 
@@ -848,6 +899,7 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)dispose {
+    [self pause];
     [self disposeSansEventChannel];
     [_eventChannel setStreamHandler:nil];
     [self disablePictureInPicture];
@@ -943,7 +995,10 @@ NSMutableDictionary*  _artworkImageDict;
 }
 
 - (void) setRemoteCommandsNotificationNotActive{
-    [[AVAudioSession sharedInstance] setActive:false error:nil];
+    if ([_players count] == 0) {
+        [[AVAudioSession sharedInstance] setActive:false error:nil];
+    }
+    
     [[UIApplication sharedApplication] endReceivingRemoteControlEvents];
 }
 
@@ -1153,6 +1208,7 @@ NSMutableDictionary*  _artworkImageDict;
             }
             result(nil);
         } else if ([@"dispose" isEqualToString:call.method]) {
+            [player clear];
             [self disposeNotificationData:player];
             [self setRemoteCommandsNotificationNotActive];
             [_registry unregisterTexture:textureId];
@@ -1173,7 +1229,9 @@ NSMutableDictionary*  _artworkImageDict;
                     [player dispose];
                 }
             });
-            [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+            if ([_players count] == 0) {
+                [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+            }
             result(nil);
         } else if ([@"setLooping" isEqualToString:call.method]) {
             [player setIsLooping:[argsMap[@"looping"] boolValue]];
@@ -1228,9 +1286,9 @@ NSMutableDictionary*  _artworkImageDict;
             [player setAudioTrack:name index: index];
         } else if ([@"setMixWithOthers" isEqualToString:call.method]){
             [player setMixWithOthers:[argsMap[@"mixWithOthers"] boolValue]];
-        }
-        
-        else {
+        } else if ([@"clearCache" isEqualToString:call.method]){
+            [KTVHTTPCache cacheDeleteAllCaches];
+        } else {
             result(FlutterMethodNotImplemented);
         }
     }

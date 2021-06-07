@@ -91,4 +91,50 @@ class BetterPlayerTranslations {
         overflowMenuAudioTracks: "الصوت",
         qualityAuto: "تلقائي",
       );
+
+  factory BetterPlayerTranslations.turkish() => BetterPlayerTranslations(
+      languageCode: "tr",
+      generalDefaultError: "Video oynatılamıyor",
+      generalNone: "Hiçbiri",
+      generalDefault: "Varsayılan",
+      generalRetry: "Tekrar Dene",
+      playlistLoadingNextVideo: "Sonraki video yükleniyor",
+      controlsLive: "CANLI",
+      controlsNextVideoIn: "Sonraki video oynatılmadan",
+      overflowMenuPlaybackSpeed: "Oynatma hızı",
+      overflowMenuSubtitles: "Altyazı",
+      overflowMenuQuality: "Kalite",
+      overflowMenuAudioTracks: "Ses",
+      qualityAuto: "Otomatik");
+
+  factory BetterPlayerTranslations.vietnamese() => BetterPlayerTranslations(
+        languageCode: "vi",
+        generalDefaultError: "Video không thể phát bây giờ",
+        generalNone: "Không có",
+        generalDefault: "Mặc định",
+        generalRetry: "Thử lại ngay",
+        controlsLive: "Trực tiếp",
+        playlistLoadingNextVideo: "Đang tải video tiếp theo",
+        controlsNextVideoIn: "Video tiếp theo",
+        overflowMenuPlaybackSpeed: "Tốc độ phát",
+        overflowMenuSubtitles: "Phụ đề",
+        overflowMenuQuality: "Chất lượng",
+        overflowMenuAudioTracks: "Âm thanh",
+        qualityAuto: "Tự động",
+      );
+
+  factory BetterPlayerTranslations.spanish() => BetterPlayerTranslations(
+        languageCode: "es",
+        generalDefaultError: "No se puede reproducir el video",
+        generalNone: "Ninguno",
+        generalDefault: "Por defecto",
+        generalRetry: "Reintentar",
+        controlsLive: "EN DIRECTO",
+        playlistLoadingNextVideo: "Cargando siguiente video",
+        controlsNextVideoIn: "Siguiente video en",
+        overflowMenuPlaybackSpeed: "Velocidad",
+        overflowMenuSubtitles: "Subtítulos",
+        overflowMenuQuality: "Calidad",
+        qualityAuto: "Automática",
+      );
 }
