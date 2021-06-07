@@ -119,7 +119,8 @@ final class BetterPlayer {
         this.eventChannel = eventChannel;
         this.textureEntry = textureEntry;
         trackSelector = new DefaultTrackSelector(context);
-        exoPlayer = new SimpleExoPlayer.Builder(context).setTrackSelector(trackSelector).build();
+        exoPlayer = new SimpleExoPlayer.Builder(context).setMediaSourceFactory(
+            new DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(4000)).setTrackSelector(trackSelector).build();
         workManager = WorkManager.getInstance(context);
         workerObserverMap = new HashMap<>();
 
