@@ -45,16 +45,10 @@ class _BetterPlayerMaterialControlsState
   Timer? _showAfterExpandCollapseTimer;
   bool _displayTapped = false;
   bool _wasLoading = false;
-<<<<<<< HEAD
   bool _liveOutOfSync = false;
-  VideoPlayerController _controller;
-  BetterPlayerController _betterPlayerController;
-  StreamSubscription _controlsVisibilityStreamSubscription;
-=======
   VideoPlayerController? _controller;
   BetterPlayerController? _betterPlayerController;
   StreamSubscription? _controlsVisibilityStreamSubscription;
->>>>>>> 5be8878882c7d4850fb6bd1acd1c54500254f7f0
 
   BetterPlayerControlsConfiguration get _controlsConfiguration =>
       widget.controlsConfiguration;
@@ -308,9 +302,8 @@ class _BetterPlayerMaterialControlsState
   }
 
   Widget _buildLiveWidget() {
-<<<<<<< HEAD
     return widget.controlsConfiguration.liveWidget != null
-        ? widget.controlsConfiguration.liveWidget
+        ? widget.controlsConfiguration.liveWidget as Widget
         : Expanded(
             child: Container(
               child: Row(
@@ -322,7 +315,7 @@ class _BetterPlayerMaterialControlsState
                       }
                     },
                     child: Text(
-                      _betterPlayerController.translations.controlsLive,
+                      _betterPlayerController!.translations.controlsLive,
                       style: TextStyle(
                         color: _liveOutOfSync
                             ? Colors.grey
@@ -335,16 +328,6 @@ class _BetterPlayerMaterialControlsState
               ),
             ),
           );
-=======
-    return Expanded(
-      child: Text(
-        _betterPlayerController!.translations.controlsLive,
-        style: TextStyle(
-            color: _controlsConfiguration.liveTextColor,
-            fontWeight: FontWeight.bold),
-      ),
-    );
->>>>>>> 5be8878882c7d4850fb6bd1acd1c54500254f7f0
   }
 
   Widget _buildExpandButton() {
@@ -650,12 +633,8 @@ class _BetterPlayerMaterialControlsState
     bool isFinished = false;
 
     if (_latestValue?.position != null && _latestValue?.duration != null) {
-<<<<<<< HEAD
-      isFinished = _latestValue.position >= _latestValue.duration &&
-          _betterPlayerController.isLiveStream();
-=======
-      isFinished = _latestValue!.position >= _latestValue!.duration!;
->>>>>>> 5be8878882c7d4850fb6bd1acd1c54500254f7f0
+      isFinished = _latestValue!.position >= _latestValue!.duration! &&
+          _betterPlayerController!.isLiveStream();
     }
 
     setState(() {
@@ -671,17 +650,12 @@ class _BetterPlayerMaterialControlsState
           if (isFinished) {
             _betterPlayerController!.seekTo(const Duration());
           }
-<<<<<<< HEAD
 
-          if (betterPlayerController.isLiveStream()) {
-            _betterPlayerController.seekTo(_latestValue.duration);
+          if (betterPlayerController!.isLiveStream()) {
+            _betterPlayerController!.seekTo(_latestValue!.duration!);
           }
-          _betterPlayerController.play();
-          _betterPlayerController.cancelNextVideoTimer();
-=======
           _betterPlayerController!.play();
           _betterPlayerController!.cancelNextVideoTimer();
->>>>>>> 5be8878882c7d4850fb6bd1acd1c54500254f7f0
         }
       }
     });
@@ -689,16 +663,9 @@ class _BetterPlayerMaterialControlsState
 
   void _syncWithBuffer() async {
     final bufferEnd =
-        Duration(seconds: (_latestValue.buffered.last.end.inSeconds - 1));
-    print("duration ${_latestValue.duration.inSeconds}");
-    print(
-        "value duration ${_betterPlayerController.videoPlayerController.value.duration.inSeconds}");
-    print("seekingTo = ${bufferEnd.inSeconds}");
-
-    print("olPosition: ${_latestValue.position.inSeconds}");
+        Duration(seconds: (_latestValue!.buffered.last.end.inSeconds - 1));
     // betterPlayerController.videoPlayerController.
-    await betterPlayerController.seekTo(Duration(seconds: 185));
-    print("newPosition: ${_latestValue.position.inSeconds}");
+    await betterPlayerController!.seekTo(Duration(seconds: 185));
 
     _updateState();
   }
@@ -725,8 +692,8 @@ class _BetterPlayerMaterialControlsState
           if (isVideoFinished(_latestValue)) {
             _hideStuff = false;
           }
-          if (betterPlayerController.isLiveStream()) {
-            _liveOutOfSync = isOutOfSync(_latestValue);
+          if (betterPlayerController!.isLiveStream()) {
+            // _liveOutOfSync = isOutOfSync(_latestValue);
           }
         });
       }
