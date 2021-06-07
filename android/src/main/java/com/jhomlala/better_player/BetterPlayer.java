@@ -607,6 +607,7 @@ final class BetterPlayer {
     }
 
     void setLooping(boolean value) {
+
         exoPlayer.setRepeatMode(value ? REPEAT_MODE_ALL : REPEAT_MODE_OFF);
     }
 
@@ -652,6 +653,7 @@ final class BetterPlayer {
             long pos = exoPlayer.getCurrentPosition();
             return (windowStartTimeMs + pos);
         }
+        
         return exoPlayer.getCurrentPosition();
     }
 
