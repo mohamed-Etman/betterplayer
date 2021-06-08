@@ -29,6 +29,7 @@ class DataSourceUtils {
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS)
                 .setReadTimeoutMs(DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS);
+                
 
         if (headers != null) {
             ((DefaultHttpDataSource.Factory) dataSourceFactory).setDefaultRequestProperties(headers);

@@ -119,8 +119,7 @@ final class BetterPlayer {
         this.eventChannel = eventChannel;
         this.textureEntry = textureEntry;
         trackSelector = new DefaultTrackSelector(context);
-        exoPlayer = new SimpleExoPlayer.Builder(context).setMediaSourceFactory(
-            new DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(4000)).setTrackSelector(trackSelector).build();
+        exoPlayer = new SimpleExoPlayer.Builder(context).setTrackSelector(trackSelector).build();
         workManager = WorkManager.getInstance(context);
         workerObserverMap = new HashMap<>();
 
@@ -486,7 +485,7 @@ final class BetterPlayer {
         if (cacheKey != null && cacheKey.length() > 0) {
             mediaItemBuilder.setCustomCacheKey(cacheKey);
         }
-        MediaItem mediaItem = mediaItemBuilder.build();
+        MediaItem mediaItem = mediaItemBuilder.setLiveTargetOffsetMs(1000).setLiveMaxOffsetMs(3000).build();
         switch (type) {
 
             case C.TYPE_SS:
